@@ -1,0 +1,5 @@
+{
+  "nodePort": 2222,
+  "internalRestPort": 61001,
+  "logLevel": "info"
+}
