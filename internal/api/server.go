@@ -21,15 +21,16 @@ import (
 )
 
 type Server struct {
-	config         *config.Config
-	logger         *logger.Logger
-	core           *xray.Core
-	configManager  *xray.ConfigManager
-	xrayController *controller.XrayController
-	mainServer     *http.Server
-	internalServer *http.Server
-	mainRouter     *gin.Engine
-	internalRouter *gin.Engine
+	config            *config.Config
+	logger            *logger.Logger
+	core              *xray.Core
+	configManager     *xray.ConfigManager
+	xrayController    *controller.XrayController
+	handlerController *controller.HandlerController
+	mainServer        *http.Server
+	internalServer    *http.Server
+	mainRouter        *gin.Engine
+	internalRouter    *gin.Engine
 }
 
 func NewServer(cfg *config.Config, log *logger.Logger, core *xray.Core, configMgr *xray.ConfigManager) (*Server, error) {
@@ -43,6 +44,7 @@ func NewServer(cfg *config.Config, log *logger.Logger, core *xray.Core, configMg
 	}
 
 	s.xrayController = controller.NewXrayController(core, configMgr, log)
+	s.handlerController = controller.NewHandlerController(core, configMgr, log)
 	s.mainRouter = s.setupMainRouter()
 	s.internalRouter = s.setupInternalRouter()
 
@@ -103,14 +105,7 @@ func (s *Server) setupMainRouter() *gin.Engine {
 		s.xrayController.RegisterRoutes(xrayGroup)
 
 		handlerGroup := nodeGroup.Group("/handler")
-		{
-			handlerGroup.POST("/add-user", notImplementedHandler)
-			handlerGroup.POST("/add-users", notImplementedHandler)
-			handlerGroup.POST("/remove-user", notImplementedHandler)
-			handlerGroup.POST("/remove-users", notImplementedHandler)
-			handlerGroup.POST("/get-inbound-users", notImplementedHandler)
-			handlerGroup.POST("/get-inbound-users-count", notImplementedHandler)
-		}
+		s.handlerController.RegisterRoutes(handlerGroup)
 
 		statsGroup := nodeGroup.Group("/stats")
 		{
