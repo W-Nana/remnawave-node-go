@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/xtls/xray-core/core"
@@ -11,6 +12,22 @@ import (
 
 	"github.com/remnawave/node-go/internal/logger"
 )
+
+func init() {
+	if os.Getenv("XRAY_LOCATION_ASSET") == "" {
+		for _, path := range []string{
+			"/usr/local/share/xray",
+			"/usr/share/xray",
+			"/opt/xray",
+			".",
+		} {
+			if _, err := os.Stat(path + "/geoip.dat"); err == nil {
+				os.Setenv("XRAY_LOCATION_ASSET", path)
+				break
+			}
+		}
+	}
+}
 
 type Core struct {
 	mu       sync.RWMutex

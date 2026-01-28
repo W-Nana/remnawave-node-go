@@ -19,6 +19,27 @@ High-performance Go rewrite of Remnawave Node with embedded xray-core. This node
 
 - Go 1.21 or later
 - Git
+- GeoIP/GeoSite data files (for routing rules)
+
+### Download GeoIP/GeoSite Assets
+
+xray-core requires `geoip.dat` and `geosite.dat` files for geo-based routing rules:
+
+```bash
+# Download to default location (requires sudo)
+sudo ./scripts/download-geo-assets.sh /usr/local/share/xray
+
+# Or download to current directory
+./scripts/download-geo-assets.sh .
+export XRAY_LOCATION_ASSET=$(pwd)
+```
+
+The application automatically searches for geo files in:
+1. `$XRAY_LOCATION_ASSET` (if set)
+2. `/usr/local/share/xray`
+3. `/usr/share/xray`
+4. `/opt/xray`
+5. Current directory
 
 ### Build from Source
 

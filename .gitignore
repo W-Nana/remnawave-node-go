@@ -7,6 +7,10 @@
 /node-go
 /remnawave-node-go
 
+# GeoIP/GeoSite data files
+geoip.dat
+geosite.dat
+
 # Build output
 /bin/
 /dist/
