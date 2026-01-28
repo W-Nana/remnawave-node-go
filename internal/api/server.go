@@ -27,6 +27,7 @@ type Server struct {
 	configManager     *xray.ConfigManager
 	xrayController    *controller.XrayController
 	handlerController *controller.HandlerController
+	statsController   *controller.StatsController
 	mainServer        *http.Server
 	internalServer    *http.Server
 	mainRouter        *gin.Engine
@@ -45,6 +46,7 @@ func NewServer(cfg *config.Config, log *logger.Logger, core *xray.Core, configMg
 
 	s.xrayController = controller.NewXrayController(core, configMgr, log)
 	s.handlerController = controller.NewHandlerController(core, configMgr, log)
+	s.statsController = controller.NewStatsController(core, log)
 	s.mainRouter = s.setupMainRouter()
 	s.internalRouter = s.setupInternalRouter()
 
@@ -108,16 +110,7 @@ func (s *Server) setupMainRouter() *gin.Engine {
 		s.handlerController.RegisterRoutes(handlerGroup)
 
 		statsGroup := nodeGroup.Group("/stats")
-		{
-			statsGroup.GET("/get-system-stats", notImplementedHandler)
-			statsGroup.POST("/get-users-stats", notImplementedHandler)
-			statsGroup.POST("/get-user-online-status", notImplementedHandler)
-			statsGroup.POST("/get-inbound-stats", notImplementedHandler)
-			statsGroup.POST("/get-outbound-stats", notImplementedHandler)
-			statsGroup.POST("/get-all-inbounds-stats", notImplementedHandler)
-			statsGroup.POST("/get-all-outbounds-stats", notImplementedHandler)
-			statsGroup.POST("/get-combined-stats", notImplementedHandler)
-		}
+		s.statsController.RegisterRoutes(statsGroup)
 	}
 
 	return router
