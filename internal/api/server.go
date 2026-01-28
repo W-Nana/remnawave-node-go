@@ -12,29 +12,37 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/klauspost/compress/zstd"
 
+	"github.com/remnawave/node-go/internal/api/controller"
 	"github.com/remnawave/node-go/internal/api/middleware"
 	"github.com/remnawave/node-go/internal/config"
 	apperrors "github.com/remnawave/node-go/internal/errors"
 	"github.com/remnawave/node-go/internal/logger"
+	"github.com/remnawave/node-go/internal/xray"
 )
 
 type Server struct {
 	config         *config.Config
 	logger         *logger.Logger
+	core           *xray.Core
+	configManager  *xray.ConfigManager
+	xrayController *controller.XrayController
 	mainServer     *http.Server
 	internalServer *http.Server
 	mainRouter     *gin.Engine
 	internalRouter *gin.Engine
 }
 
-func NewServer(cfg *config.Config, log *logger.Logger) (*Server, error) {
+func NewServer(cfg *config.Config, log *logger.Logger, core *xray.Core, configMgr *xray.ConfigManager) (*Server, error) {
 	gin.SetMode(gin.ReleaseMode)
 
 	s := &Server{
-		config: cfg,
-		logger: log,
+		config:        cfg,
+		logger:        log,
+		core:          core,
+		configManager: configMgr,
 	}
 
+	s.xrayController = controller.NewXrayController(core, configMgr, log)
 	s.mainRouter = s.setupMainRouter()
 	s.internalRouter = s.setupInternalRouter()
 
@@ -92,12 +100,7 @@ func (s *Server) setupMainRouter() *gin.Engine {
 	nodeGroup := router.Group("/node")
 	{
 		xrayGroup := nodeGroup.Group("/xray")
-		{
-			xrayGroup.POST("/start", notImplementedHandler)
-			xrayGroup.GET("/stop", notImplementedHandler)
-			xrayGroup.GET("/status", notImplementedHandler)
-			xrayGroup.GET("/healthcheck", notImplementedHandler)
-		}
+		s.xrayController.RegisterRoutes(xrayGroup)
 
 		handlerGroup := nodeGroup.Group("/handler")
 		{

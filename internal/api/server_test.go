@@ -18,6 +18,7 @@ import (
 
 	"github.com/remnawave/node-go/internal/config"
 	"github.com/remnawave/node-go/internal/logger"
+	"github.com/remnawave/node-go/internal/xray"
 )
 
 func generateTestCerts() (*config.NodePayload, error) {
@@ -94,7 +95,10 @@ func TestNewServer(t *testing.T) {
 
 	log := logger.New(logger.Config{Level: logger.LevelInfo, Format: logger.FormatJSON})
 
-	server, err := NewServer(cfg, log)
+	core := xray.NewCore(log)
+	configMgr := xray.NewConfigManager(log)
+
+	server, err := NewServer(cfg, log, core, configMgr)
 	require.NoError(t, err)
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.MainRouter())
@@ -115,7 +119,10 @@ func TestMainRouter_NotFound_DestroysSocket(t *testing.T) {
 
 	log := logger.New(logger.Config{Level: logger.LevelInfo, Format: logger.FormatJSON})
 
-	server, err := NewServer(cfg, log)
+	core := xray.NewCore(log)
+	configMgr := xray.NewConfigManager(log)
+
+	server, err := NewServer(cfg, log, core, configMgr)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/nonexistent", nil)
@@ -141,7 +148,10 @@ func TestInternalRouter_UnmatchedPrefix_Returns404Text(t *testing.T) {
 
 	log := logger.New(logger.Config{Level: logger.LevelInfo, Format: logger.FormatJSON})
 
-	server, err := NewServer(cfg, log)
+	core := xray.NewCore(log)
+	configMgr := xray.NewConfigManager(log)
+
+	server, err := NewServer(cfg, log, core, configMgr)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/node/xray/status", nil)
@@ -169,7 +179,10 @@ func TestInternalRouter_MatchedPrefix_NoRoute_DestroysSocket(t *testing.T) {
 
 	log := logger.New(logger.Config{Level: logger.LevelInfo, Format: logger.FormatJSON})
 
-	server, err := NewServer(cfg, log)
+	core := xray.NewCore(log)
+	configMgr := xray.NewConfigManager(log)
+
+	server, err := NewServer(cfg, log, core, configMgr)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/internal/get-config/extra", nil)
