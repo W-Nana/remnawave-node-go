@@ -3,10 +3,8 @@ set -euo pipefail
 
 REPO="W-Nana/remnawave-node-go"
 BINARY_NAME="remnawave-node-go"
-INSTALL_DIR="/usr/local/bin"
+INSTALL_DIR="/etc/remnawave-node"
 SERVICE_DIR="/etc/systemd/system"
-CONFIG_DIR="/etc/remnawave-node"
-DATA_DIR="/var/lib/remnawave-node"
 
 GEOIP_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
 GEOSITE_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
@@ -101,20 +99,20 @@ get_latest_version() {
 download_geo_files() {
     log_info "Downloading geo data files..."
     
-    mkdir -p "$DATA_DIR"
+    mkdir -p "$INSTALL_DIR"
     
     local tmp_dir
     tmp_dir=$(mktemp -d)
     
     if curl -fsSL "$GEOIP_URL" -o "${tmp_dir}/geoip.dat"; then
-        mv "${tmp_dir}/geoip.dat" "${DATA_DIR}/geoip.dat"
+        mv "${tmp_dir}/geoip.dat" "${INSTALL_DIR}/geoip.dat"
         log_success "Downloaded geoip.dat"
     else
         log_warn "Failed to download geoip.dat"
     fi
     
     if curl -fsSL "$GEOSITE_URL" -o "${tmp_dir}/geosite.dat"; then
-        mv "${tmp_dir}/geosite.dat" "${DATA_DIR}/geosite.dat"
+        mv "${tmp_dir}/geosite.dat" "${INSTALL_DIR}/geosite.dat"
         log_success "Downloaded geosite.dat"
     else
         log_warn "Failed to download geosite.dat"
@@ -136,7 +134,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'curl -fsSL ${GEOIP_URL} -o ${DATA_DIR}/geoip.dat && curl -fsSL ${GEOSITE_URL} -o ${DATA_DIR}/geosite.dat && systemctl restart ${BINARY_NAME} 2>/dev/null || true'
+ExecStart=/bin/bash -c 'curl -fsSL ${GEOIP_URL} -o ${INSTALL_DIR}/geoip.dat && curl -fsSL ${GEOSITE_URL} -o ${INSTALL_DIR}/geosite.dat && systemctl restart ${BINARY_NAME} 2>/dev/null || true'
 EOF
 
     cat > "${SERVICE_DIR}/remnawave-geo-update.timer" << EOF
@@ -182,6 +180,7 @@ download_binary() {
         systemctl stop ${BINARY_NAME}
     fi
     
+    mkdir -p "$INSTALL_DIR"
     mv "${tmp_dir}/${BINARY_NAME}" "${INSTALL_DIR}/"
     chmod +x "${INSTALL_DIR}/${BINARY_NAME}"
     
@@ -194,39 +193,38 @@ create_config() {
     local port="${2:-3000}"
     local host="${3:-}"
     
-    mkdir -p "$CONFIG_DIR"
-    mkdir -p "$DATA_DIR"
+    mkdir -p "$INSTALL_DIR"
     
-    if [[ -f "${CONFIG_DIR}/.env" ]] && [[ -z "$secret" ]]; then
+    if [[ -f "${INSTALL_DIR}/.env" ]] && [[ -z "$secret" ]]; then
         log_info "Existing config found, preserving..."
         return
     fi
     
     if [[ -z "$secret" ]]; then
-        log_warn "No secret provided. You must edit ${CONFIG_DIR}/.env manually."
-        cat > "${CONFIG_DIR}/.env" << EOF
+        log_warn "No secret provided. You must edit ${INSTALL_DIR}/.env manually."
+        cat > "${INSTALL_DIR}/.env" << EOF
 # Remnawave Node Configuration
 APP_PORT=${port}
 PANEL_HOST=${host:-https://your-panel.example.com}
 PANEL_TOKEN=your-node-token-here
 
-# Geo data location (auto-managed)
-XRAY_LOCATION_ASSET=${DATA_DIR}
+# Geo data location
+XRAY_LOCATION_ASSET=${INSTALL_DIR}
 EOF
     else
-        cat > "${CONFIG_DIR}/.env" << EOF
+        cat > "${INSTALL_DIR}/.env" << EOF
 # Remnawave Node Configuration
 APP_PORT=${port}
 PANEL_HOST=${host}
 PANEL_TOKEN=${secret}
 
-# Geo data location (auto-managed)
-XRAY_LOCATION_ASSET=${DATA_DIR}
+# Geo data location
+XRAY_LOCATION_ASSET=${INSTALL_DIR}
 EOF
         log_success "Config created with provided credentials"
     fi
     
-    chmod 600 "${CONFIG_DIR}/.env"
+    chmod 600 "${INSTALL_DIR}/.env"
 }
 
 install_systemd_service() {
@@ -239,7 +237,8 @@ After=network.target nss-lookup.target
 [Service]
 Type=simple
 User=root
-EnvironmentFile=${CONFIG_DIR}/.env
+WorkingDirectory=${INSTALL_DIR}
+EnvironmentFile=${INSTALL_DIR}/.env
 ExecStart=${INSTALL_DIR}/${BINARY_NAME}
 Restart=on-failure
 RestartSec=5
@@ -262,9 +261,10 @@ show_status() {
     log_success "Installation complete!"
     echo "========================================"
     echo ""
-    echo "Configuration: ${CONFIG_DIR}/.env"
-    echo "Geo data:      ${DATA_DIR}/"
-    echo "Binary:        ${INSTALL_DIR}/${BINARY_NAME}"
+    echo "Install directory: ${INSTALL_DIR}/"
+    echo "  - Binary:        ${INSTALL_DIR}/${BINARY_NAME}"
+    echo "  - Config:        ${INSTALL_DIR}/.env"
+    echo "  - Geo data:      ${INSTALL_DIR}/geoip.dat, geosite.dat"
     echo ""
     
     if [[ -n "$secret" ]]; then
@@ -283,7 +283,7 @@ show_status() {
         fi
     else
         echo "Next steps:"
-        echo "  1. Edit config:  nano ${CONFIG_DIR}/.env"
+        echo "  1. Edit config:  nano ${INSTALL_DIR}/.env"
         echo "  2. Start:        systemctl start ${BINARY_NAME}"
         echo "  3. Check logs:   journalctl -u ${BINARY_NAME} -f"
     fi
@@ -332,17 +332,15 @@ do_uninstall() {
     systemctl stop remnawave-geo-update.timer 2>/dev/null || true
     systemctl disable remnawave-geo-update.timer 2>/dev/null || true
     
-    rm -f "${INSTALL_DIR}/${BINARY_NAME}"
     rm -f "${SERVICE_DIR}/${BINARY_NAME}.service"
     rm -f "${SERVICE_DIR}/remnawave-geo-update.service"
     rm -f "${SERVICE_DIR}/remnawave-geo-update.timer"
     systemctl daemon-reload
     
     log_success "Uninstalled successfully"
-    log_info "Config preserved at: ${CONFIG_DIR}"
-    log_info "Data preserved at: ${DATA_DIR}"
+    log_info "Data preserved at: ${INSTALL_DIR}"
     echo ""
-    echo "To remove all data: rm -rf ${CONFIG_DIR} ${DATA_DIR}"
+    echo "To remove all data: rm -rf ${INSTALL_DIR}"
 }
 
 do_update() {
