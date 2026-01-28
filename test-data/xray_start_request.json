@@ -1,0 +1,41 @@
+{
+  "xrayConfig": {
+    "log": {
+      "loglevel": "warning"
+    },
+    "inbounds": [
+      {
+        "tag": "vless-in",
+        "port": 10000,
+        "protocol": "vless",
+        "settings": {
+          "clients": [],
+          "decryption": "none"
+        },
+        "streamSettings": {
+          "network": "tcp"
+        }
+      }
+    ],
+    "outbounds": [
+      {
+        "tag": "direct",
+        "protocol": "freedom"
+      }
+    ],
+    "stats": {}
+  },
+  "internals": {
+    "forceRestart": false,
+    "hashes": {
+      "emptyConfig": "a1b2c3d4e5f67890",
+      "inbounds": [
+        {
+          "tag": "vless-in",
+          "hash": "0000000000000000",
+          "usersCount": 0
+        }
+      ]
+    }
+  }
+}
