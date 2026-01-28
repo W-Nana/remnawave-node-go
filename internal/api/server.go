@@ -8,11 +8,11 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/klauspost/compress/zstd"
 
+	"github.com/remnawave/node-go/internal/api/middleware"
 	"github.com/remnawave/node-go/internal/config"
 	apperrors "github.com/remnawave/node-go/internal/errors"
 	"github.com/remnawave/node-go/internal/logger"
@@ -85,8 +85,42 @@ func (s *Server) setupMainRouter() *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(s.loggingMiddleware())
 	router.Use(s.zstdMiddleware())
+	router.Use(middleware.JWTMiddleware(s.config.Payload.JWTPublicKey, s.logger))
 
 	router.NoRoute(s.notFoundHandler())
+
+	nodeGroup := router.Group("/node")
+	{
+		xrayGroup := nodeGroup.Group("/xray")
+		{
+			xrayGroup.POST("/start", notImplementedHandler)
+			xrayGroup.GET("/stop", notImplementedHandler)
+			xrayGroup.GET("/status", notImplementedHandler)
+			xrayGroup.GET("/healthcheck", notImplementedHandler)
+		}
+
+		handlerGroup := nodeGroup.Group("/handler")
+		{
+			handlerGroup.POST("/add-user", notImplementedHandler)
+			handlerGroup.POST("/add-users", notImplementedHandler)
+			handlerGroup.POST("/remove-user", notImplementedHandler)
+			handlerGroup.POST("/remove-users", notImplementedHandler)
+			handlerGroup.POST("/get-inbound-users", notImplementedHandler)
+			handlerGroup.POST("/get-inbound-users-count", notImplementedHandler)
+		}
+
+		statsGroup := nodeGroup.Group("/stats")
+		{
+			statsGroup.GET("/get-system-stats", notImplementedHandler)
+			statsGroup.POST("/get-users-stats", notImplementedHandler)
+			statsGroup.POST("/get-user-online-status", notImplementedHandler)
+			statsGroup.POST("/get-inbound-stats", notImplementedHandler)
+			statsGroup.POST("/get-outbound-stats", notImplementedHandler)
+			statsGroup.POST("/get-all-inbounds-stats", notImplementedHandler)
+			statsGroup.POST("/get-all-outbounds-stats", notImplementedHandler)
+			statsGroup.POST("/get-combined-stats", notImplementedHandler)
+		}
+	}
 
 	return router
 }
@@ -95,37 +129,28 @@ func (s *Server) setupInternalRouter() *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(s.loggingMiddleware())
-
-	internalPrefixes := []string{"/internal/get-config", "/vision/block-ip", "/vision/unblock-ip"}
-
-	router.Use(func(c *gin.Context) {
-		path := c.Request.URL.Path
-		matched := false
-		for _, prefix := range internalPrefixes {
-			if strings.HasPrefix(path, prefix) {
-				matched = true
-				break
-			}
-		}
-
-		if matched {
-			c.Set("forwarded", true)
-			c.Next()
-		} else {
-			c.String(404, "Cannot %s %s", c.Request.Method, c.Request.URL.Path)
-			c.Abort()
-		}
-	})
+	router.Use(PortGuardMiddleware(s.config.InternalRestPort))
 
 	router.NoRoute(func(c *gin.Context) {
-		if c.GetBool("forwarded") {
-			destroySocket(c)
-		} else {
-			c.String(404, "Cannot %s %s", c.Request.Method, c.Request.URL.Path)
-		}
+		c.String(404, "Cannot %s %s", c.Request.Method, c.Request.URL.Path)
 	})
 
+	internalGroup := router.Group("/internal")
+	{
+		internalGroup.GET("/get-config", notImplementedHandler)
+	}
+
+	visionGroup := router.Group("/vision")
+	{
+		visionGroup.POST("/block-ip", notImplementedHandler)
+		visionGroup.POST("/unblock-ip", notImplementedHandler)
+	}
+
 	return router
+}
+
+func notImplementedHandler(c *gin.Context) {
+	c.JSON(501, gin.H{"message": "not implemented"})
 }
 
 func (s *Server) MainRouter() *gin.Engine {
