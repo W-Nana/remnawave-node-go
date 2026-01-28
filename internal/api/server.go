@@ -21,17 +21,19 @@ import (
 )
 
 type Server struct {
-	config            *config.Config
-	logger            *logger.Logger
-	core              *xray.Core
-	configManager     *xray.ConfigManager
-	xrayController    *controller.XrayController
-	handlerController *controller.HandlerController
-	statsController   *controller.StatsController
-	mainServer        *http.Server
-	internalServer    *http.Server
-	mainRouter        *gin.Engine
-	internalRouter    *gin.Engine
+	config             *config.Config
+	logger             *logger.Logger
+	core               *xray.Core
+	configManager      *xray.ConfigManager
+	xrayController     *controller.XrayController
+	handlerController  *controller.HandlerController
+	statsController    *controller.StatsController
+	visionController   *controller.VisionController
+	internalController *controller.InternalController
+	mainServer         *http.Server
+	internalServer     *http.Server
+	mainRouter         *gin.Engine
+	internalRouter     *gin.Engine
 }
 
 func NewServer(cfg *config.Config, log *logger.Logger, core *xray.Core, configMgr *xray.ConfigManager) (*Server, error) {
@@ -47,6 +49,8 @@ func NewServer(cfg *config.Config, log *logger.Logger, core *xray.Core, configMg
 	s.xrayController = controller.NewXrayController(core, configMgr, log)
 	s.handlerController = controller.NewHandlerController(core, configMgr, log)
 	s.statsController = controller.NewStatsController(core, log)
+	s.visionController = controller.NewVisionController(core, log)
+	s.internalController = controller.NewInternalController(configMgr, log)
 	s.mainRouter = s.setupMainRouter()
 	s.internalRouter = s.setupInternalRouter()
 
@@ -128,20 +132,15 @@ func (s *Server) setupInternalRouter() *gin.Engine {
 
 	internalGroup := router.Group("/internal")
 	{
-		internalGroup.GET("/get-config", notImplementedHandler)
+		s.internalController.RegisterRoutes(internalGroup)
 	}
 
 	visionGroup := router.Group("/vision")
 	{
-		visionGroup.POST("/block-ip", notImplementedHandler)
-		visionGroup.POST("/unblock-ip", notImplementedHandler)
+		s.visionController.RegisterRoutes(visionGroup)
 	}
 
 	return router
-}
-
-func notImplementedHandler(c *gin.Context) {
-	c.JSON(501, gin.H{"message": "not implemented"})
 }
 
 func (s *Server) MainRouter() *gin.Engine {
