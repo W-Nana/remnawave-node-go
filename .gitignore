@@ -5,6 +5,7 @@
 *.so
 *.dylib
 /node-go
+/remnawave-node-go
 
 # Build output
 /bin/
