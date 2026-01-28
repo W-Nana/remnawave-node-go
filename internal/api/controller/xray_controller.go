@@ -325,5 +325,40 @@ func generateAPIConfig(config map[string]interface{}) map[string]interface{} {
 		result["stats"] = map[string]interface{}{}
 	}
 
+	// Add policy configuration for user and system stats
+	// This is REQUIRED for xray-core to collect traffic statistics
+	existingPolicy, _ := result["policy"].(map[string]interface{})
+	if existingPolicy == nil {
+		existingPolicy = map[string]interface{}{}
+	}
+
+	existingLevels, _ := existingPolicy["levels"].(map[string]interface{})
+	if existingLevels == nil {
+		existingLevels = map[string]interface{}{}
+	}
+
+	existingLevel0, _ := existingLevels["0"].(map[string]interface{})
+	if existingLevel0 == nil {
+		existingLevel0 = map[string]interface{}{}
+	}
+
+	// Enable user stats (required for per-user traffic tracking)
+	existingLevel0["statsUserUplink"] = true
+	existingLevel0["statsUserDownlink"] = true
+	existingLevel0["statsUserOnline"] = false
+
+	existingLevels["0"] = existingLevel0
+	existingPolicy["levels"] = existingLevels
+
+	// Enable system-wide stats
+	existingPolicy["system"] = map[string]interface{}{
+		"statsInboundUplink":    true,
+		"statsInboundDownlink":  true,
+		"statsOutboundUplink":   true,
+		"statsOutboundDownlink": true,
+	}
+
+	result["policy"] = existingPolicy
+
 	return result
 }
