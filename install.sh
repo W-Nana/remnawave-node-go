@@ -34,18 +34,17 @@ Commands:
   update-geo  Update geoip/geosite data files
 
 Options:
-  -s, --secret <SECRET>   Panel secret/token (required for install)
-  -p, --port <PORT>       Node port (default: 3000)
-  -h, --host <HOST>       Panel host URL (e.g., https://panel.example.com)
-  -v, --version <VER>     Install specific version (e.g., v1.0.0)
-  --help                  Show this help message
+  -s, --secret <SECRET_KEY>   Panel secret key (required for install)
+  -p, --port <NODE_PORT>      Node port (default: 3000)
+  -v, --version <VER>         Install specific version (e.g., v1.0.0)
+  --help                      Show this help message
 
 Examples:
-  # Install with panel secret and port
-  bash <(curl -sL https://raw.githubusercontent.com/${REPO}/main/install.sh) -s YOUR_SECRET -p 3000
+  # Install with secret key and port
+  bash <(curl -sL https://raw.githubusercontent.com/${REPO}/main/install.sh) -s YOUR_SECRET_KEY -p 3000
 
-  # Install with full options
-  bash install.sh install -s SECRET -p 3000 -h https://panel.example.com
+  # Install with specific version
+  bash install.sh install -s SECRET_KEY -p 3000 -v v1.0.0
 
   # Update node
   bash install.sh update
@@ -191,7 +190,6 @@ download_binary() {
 create_config() {
     local secret="${1:-}"
     local port="${2:-3000}"
-    local host="${3:-}"
     
     mkdir -p "$INSTALL_DIR"
     
@@ -204,9 +202,8 @@ create_config() {
         log_warn "No secret provided. You must edit ${INSTALL_DIR}/.env manually."
         cat > "${INSTALL_DIR}/.env" << EOF
 # Remnawave Node Configuration
-APP_PORT=${port}
-PANEL_HOST=${host:-https://your-panel.example.com}
-PANEL_TOKEN=your-node-token-here
+SECRET_KEY=your-secret-key-here
+NODE_PORT=${port}
 
 # Geo data location
 XRAY_LOCATION_ASSET=${INSTALL_DIR}
@@ -214,9 +211,8 @@ EOF
     else
         cat > "${INSTALL_DIR}/.env" << EOF
 # Remnawave Node Configuration
-APP_PORT=${port}
-PANEL_HOST=${host}
-PANEL_TOKEN=${secret}
+SECRET_KEY=${secret}
+NODE_PORT=${port}
 
 # Geo data location
 XRAY_LOCATION_ASSET=${INSTALL_DIR}
@@ -293,8 +289,7 @@ show_status() {
 do_install() {
     local secret="$1"
     local port="$2"
-    local host="$3"
-    local version="$4"
+    local version="$3"
     
     check_root
     
@@ -312,7 +307,7 @@ do_install() {
     
     download_binary "$version" "$os" "$arch"
     download_geo_files
-    create_config "$secret" "$port" "$host"
+    create_config "$secret" "$port"
     
     if [[ "$os" == "linux" ]] && command -v systemctl &>/dev/null; then
         install_systemd_service
@@ -381,7 +376,6 @@ main() {
     local cmd="install"
     local secret=""
     local port="3000"
-    local host=""
     local version=""
     
     while [[ $# -gt 0 ]]; do
@@ -396,10 +390,6 @@ main() {
                 ;;
             -p|--port)
                 port="$2"
-                shift 2
-                ;;
-            -h|--host)
-                host="$2"
                 shift 2
                 ;;
             -v|--version)
@@ -418,7 +408,7 @@ main() {
     
     case "$cmd" in
         install)
-            do_install "$secret" "$port" "$host" "$version"
+            do_install "$secret" "$port" "$version"
             ;;
         uninstall)
             do_uninstall
