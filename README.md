@@ -2,7 +2,7 @@
 
 [繁體中文](README_zh.md)
 
-High-performance Go rewrite of Remnawave Node with embedded xray-core. This node connects to the Remnawave panel and provides proxy services with VLESS, Trojan, and Shadowsocks support.
+High-performance Go rewrite of [Remnawave Node](https://github.com/remnawave/node) with embedded xray-core. This node connects to the Remnawave panel and provides proxy services with VLESS, Trojan, and Shadowsocks support.
 
 ## Features
 
@@ -16,23 +16,22 @@ High-performance Go rewrite of Remnawave Node with embedded xray-core. This node
 ## Quick Install
 
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/W-Nana/remnawave-node-go/main/install.sh) -s <SECRET> -p <PORT>
+bash <(curl -sL https://raw.githubusercontent.com/W-Nana/remnawave-node-go/main/install.sh) -s <SECRET_KEY> -p <NODE_PORT>
 ```
 
 ### Parameters
 
 | Parameter | Description |
 |-----------|-------------|
-| `-s, --secret` | Panel token (required) |
+| `-s, --secret` | SECRET_KEY from panel (required) |
 | `-p, --port` | Node port (default: 3000) |
-| `-h, --host` | Panel URL |
 | `-v, --version` | Specific version |
 
 ### Examples
 
 ```bash
-# Install with secret and port
-bash <(curl -sL https://raw.githubusercontent.com/W-Nana/remnawave-node-go/main/install.sh) -s YOUR_SECRET -p 3000
+# Install with secret key and port
+bash <(curl -sL https://raw.githubusercontent.com/W-Nana/remnawave-node-go/main/install.sh) -s YOUR_SECRET_KEY -p 3000
 
 # Update to latest
 bash <(curl -sL https://raw.githubusercontent.com/W-Nana/remnawave-node-go/main/install.sh) update
@@ -80,9 +79,8 @@ systemctl enable remnawave-node-go
 Edit `/etc/remnawave-node/.env`:
 
 ```bash
-APP_PORT=3000
-PANEL_HOST=https://your-panel.example.com
-PANEL_TOKEN=your-token-here
+SECRET_KEY=your-secret-key-here
+NODE_PORT=3000
 XRAY_LOCATION_ASSET=/etc/remnawave-node
 ```
 
@@ -124,6 +122,10 @@ make build
 | `GET` | `/internal/get-config` | Get xray config |
 | `POST` | `/vision/block-ip` | Block IP |
 | `POST` | `/vision/unblock-ip` | Unblock IP |
+
+## Credits
+
+This project is a Go rewrite of the original [Remnawave Node](https://github.com/remnawave/node) (TypeScript/NestJS).
 
 ## License
 

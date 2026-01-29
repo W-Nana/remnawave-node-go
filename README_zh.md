@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-高效能 Go 語言重寫的 Remnawave 節點，內嵌 xray-core。此節點連接至 Remnawave 面板，提供 VLESS、Trojan 和 Shadowsocks 代理服務。
+高效能 Go 語言重寫的 [Remnawave Node](https://github.com/remnawave/node)，內嵌 xray-core。此節點連接至 Remnawave 面板，提供 VLESS、Trojan 和 Shadowsocks 代理服務。
 
 ## 特色功能
 
@@ -16,23 +16,22 @@
 ## 快速安裝
 
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/W-Nana/remnawave-node-go/main/install.sh) -s <密鑰> -p <端口>
+bash <(curl -sL https://raw.githubusercontent.com/W-Nana/remnawave-node-go/main/install.sh) -s <SECRET_KEY> -p <NODE_PORT>
 ```
 
 ### 參數說明
 
 | 參數 | 說明 |
 |------|------|
-| `-s, --secret` | 面板令牌（必填） |
+| `-s, --secret` | 面板 SECRET_KEY（必填） |
 | `-p, --port` | 節點端口（預設：3000） |
-| `-h, --host` | 面板網址 |
 | `-v, --version` | 指定版本 |
 
 ### 使用範例
 
 ```bash
 # 安裝並設定密鑰與端口
-bash <(curl -sL https://raw.githubusercontent.com/W-Nana/remnawave-node-go/main/install.sh) -s 你的密鑰 -p 3000
+bash <(curl -sL https://raw.githubusercontent.com/W-Nana/remnawave-node-go/main/install.sh) -s 你的SECRET_KEY -p 3000
 
 # 更新至最新版本
 bash <(curl -sL https://raw.githubusercontent.com/W-Nana/remnawave-node-go/main/install.sh) update
@@ -80,9 +79,8 @@ systemctl enable remnawave-node-go
 編輯 `/etc/remnawave-node/.env`：
 
 ```bash
-APP_PORT=3000
-PANEL_HOST=https://your-panel.example.com
-PANEL_TOKEN=your-token-here
+SECRET_KEY=your-secret-key-here
+NODE_PORT=3000
 XRAY_LOCATION_ASSET=/etc/remnawave-node
 ```
 
@@ -124,6 +122,10 @@ make build
 | `GET` | `/internal/get-config` | 取得 xray 設定 |
 | `POST` | `/vision/block-ip` | 封鎖 IP |
 | `POST` | `/vision/unblock-ip` | 解除封鎖 IP |
+
+## 致謝
+
+本專案是原始 [Remnawave Node](https://github.com/remnawave/node)（TypeScript/NestJS）的 Go 語言重寫版本。
 
 ## 授權條款
 
