@@ -316,13 +316,52 @@ func generateAPIConfig(config map[string]interface{}) map[string]interface{} {
 
 	if _, ok := result["api"]; !ok {
 		result["api"] = map[string]interface{}{
-			"services": []interface{}{"HandlerService", "LoggerService", "StatsService"},
+			"services": []interface{}{"HandlerService", "LoggerService", "StatsService", "RoutingService"},
 			"tag":      "api",
+		}
+	} else {
+		api, _ := result["api"].(map[string]interface{})
+		if api != nil {
+			services, _ := api["services"].([]interface{})
+			hasRoutingService := false
+			for _, s := range services {
+				if str, ok := s.(string); ok && str == "RoutingService" {
+					hasRoutingService = true
+					break
+				}
+			}
+			if !hasRoutingService {
+				api["services"] = append(services, "RoutingService")
+			}
 		}
 	}
 
 	if _, ok := result["stats"]; !ok {
 		result["stats"] = map[string]interface{}{}
+	}
+
+	outbounds, _ := result["outbounds"].([]interface{})
+	hasBlockOutbound := false
+	for _, ob := range outbounds {
+		if outbound, ok := ob.(map[string]interface{}); ok {
+			if tag, ok := outbound["tag"].(string); ok && tag == "BLOCK" {
+				hasBlockOutbound = true
+				break
+			}
+		}
+	}
+	if !hasBlockOutbound {
+		blockOutbound := map[string]interface{}{
+			"tag":      "BLOCK",
+			"protocol": "blackhole",
+			"settings": map[string]interface{}{
+				"response": map[string]interface{}{
+					"type": "http",
+				},
+			},
+		}
+		outbounds = append(outbounds, blockOutbound)
+		result["outbounds"] = outbounds
 	}
 
 	// Add policy configuration for user and system stats

@@ -13,28 +13,22 @@ import (
 	"github.com/remnawave/node-go/internal/xray"
 )
 
-// BlockIPRequest represents the request body for block/unblock IP endpoints.
 type BlockIPRequest struct {
 	IP string `json:"ip" binding:"required"`
 }
 
-// BlockIPResponse represents the response for block/unblock IP endpoints.
 type BlockIPResponse struct {
 	Success bool    `json:"success"`
 	Error   *string `json:"error"`
 }
 
-// VisionController handles IP blocking/unblocking operations.
-// Note: Currently uses in-memory tracking. Full xray-core integration
-// would require the grpc command service to add/remove routing rules.
 type VisionController struct {
 	core       *xray.Core
 	logger     *logger.Logger
-	blockedIPs map[string]string // ruleTag (MD5 hash) -> IP
+	blockedIPs map[string]string
 	mu         sync.RWMutex
 }
 
-// NewVisionController creates a new VisionController instance.
 func NewVisionController(core *xray.Core, log *logger.Logger) *VisionController {
 	return &VisionController{
 		core:       core,
@@ -43,19 +37,16 @@ func NewVisionController(core *xray.Core, log *logger.Logger) *VisionController 
 	}
 }
 
-// RegisterRoutes registers the vision controller routes.
 func (c *VisionController) RegisterRoutes(group *gin.RouterGroup) {
 	group.POST("/block-ip", c.handleBlockIP)
 	group.POST("/unblock-ip", c.handleUnblockIP)
 }
 
-// getIPHash generates an MD5 hash of the IP address for use as a rule tag.
 func (c *VisionController) getIPHash(ip string) string {
 	hash := md5.Sum([]byte(ip))
 	return hex.EncodeToString(hash[:])
 }
 
-// handleBlockIP handles the POST /vision/block-ip endpoint.
 func (c *VisionController) handleBlockIP(ctx *gin.Context) {
 	var req BlockIPRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -80,14 +71,32 @@ func (c *VisionController) handleBlockIP(ctx *gin.Context) {
 	ruleTag := c.getIPHash(req.IP)
 
 	c.mu.Lock()
+	_, alreadyBlocked := c.blockedIPs[ruleTag]
+	if alreadyBlocked {
+		c.mu.Unlock()
+		ctx.JSON(http.StatusOK, wrapResponse(BlockIPResponse{
+			Success: true,
+			Error:   nil,
+		}))
+		return
+	}
 	c.blockedIPs[ruleTag] = req.IP
 	c.mu.Unlock()
 
-	// Note: Full xray-core integration would add a routing rule here:
-	// - Rule tag: ruleTag (MD5 hex of IP)
-	// - Source IP: req.IP
-	// - Outbound: "BLOCK"
-	// - Would use xray-core router feature API or grpc command service
+	if err := c.core.AddRoutingRule(ruleTag, req.IP, "BLOCK"); err != nil {
+		c.logger.WithError(err).WithField("ip", req.IP).Error("Failed to add routing rule")
+
+		c.mu.Lock()
+		delete(c.blockedIPs, ruleTag)
+		c.mu.Unlock()
+
+		errMsg := "failed to block IP: " + err.Error()
+		ctx.JSON(http.StatusInternalServerError, wrapResponse(BlockIPResponse{
+			Success: false,
+			Error:   &errMsg,
+		}))
+		return
+	}
 
 	c.logger.WithField("ip", req.IP).WithField("ruleTag", ruleTag).Info("IP blocked")
 
@@ -97,7 +106,6 @@ func (c *VisionController) handleBlockIP(ctx *gin.Context) {
 	}))
 }
 
-// handleUnblockIP handles the POST /vision/unblock-ip endpoint.
 func (c *VisionController) handleUnblockIP(ctx *gin.Context) {
 	var req BlockIPRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -122,11 +130,15 @@ func (c *VisionController) handleUnblockIP(ctx *gin.Context) {
 	ruleTag := c.getIPHash(req.IP)
 
 	c.mu.Lock()
+	_, wasBlocked := c.blockedIPs[ruleTag]
 	delete(c.blockedIPs, ruleTag)
 	c.mu.Unlock()
 
-	// Note: Full xray-core integration would remove the routing rule here:
-	// - Remove rule by tag: ruleTag
+	if wasBlocked {
+		if err := c.core.RemoveRoutingRule(ruleTag); err != nil {
+			c.logger.WithError(err).WithField("ip", req.IP).Warn("Failed to remove routing rule")
+		}
+	}
 
 	c.logger.WithField("ip", req.IP).WithField("ruleTag", ruleTag).Info("IP unblocked")
 
@@ -136,7 +148,6 @@ func (c *VisionController) handleUnblockIP(ctx *gin.Context) {
 	}))
 }
 
-// GetBlockedIPs returns a list of all currently blocked IPs.
 func (c *VisionController) GetBlockedIPs() []string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -148,7 +159,6 @@ func (c *VisionController) GetBlockedIPs() []string {
 	return ips
 }
 
-// IsBlocked checks if an IP is currently blocked.
 func (c *VisionController) IsBlocked(ip string) bool {
 	ruleTag := c.getIPHash(ip)
 	c.mu.RLock()
